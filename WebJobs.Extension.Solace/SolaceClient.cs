@@ -12,11 +12,11 @@ namespace WebJobs.Extension.Solace
     /// </summary>
     public class SolaceClient : IDisposable
     {
-        private ILogger<SolaceClient> logger;
-        private IContext context;
-        private ISession session;
-        private IQueue queue;
-        private IFlow flow;
+        private ILogger<SolaceClient> _logger;
+        private IContext _context;
+        private ISession _session;
+        private IQueue _queue;
+        private IFlow _flow;
 
         static SolaceClient()
         {
@@ -26,8 +26,8 @@ namespace WebJobs.Extension.Solace
 
         public SolaceClient(ILogger<SolaceClient> logger)
         {
-            this.logger = logger;
-            this.context = ContextFactory.Instance.CreateContext(new ContextProperties(), null);
+            _logger = logger;
+            _context = ContextFactory.Instance.CreateContext(new ContextProperties(), null);
         }
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace WebJobs.Extension.Solace
         /// <param name="connstring">Solace Connection string</param>
         public void Connect(SolaceTriggerAttribute attribute)
         {
-            this.logger.LogInformation("About to connect!");
+            _logger.LogInformation("About to connect!");
 
             var sessionProps = new SessionProperties()
             {
@@ -47,16 +47,15 @@ namespace WebJobs.Extension.Solace
                 SubscribeBlocking = true,
             };
 
-            this.session = context.CreateSession(sessionProps, null, null);
-            this.session.Connect();
+            _session = _context.CreateSession(sessionProps, null, null);
+            _session.Connect();
         }
 
         /// <summary>
         /// Subscribe to Solace channel
         /// </summary>
-        /// <param name="subject">Channel string</param>
-        /// <param name="subscription">Subscription lambda</param>
-        /// <param name="queueGroup">QueueGroup name</param>
+        /// <param name="queueName">QueueName string</param>
+        /// <param name="handler">Subscription message handler</param>
         /// <returns>Returns a Task that completes when the subscription ends</returns>
         public Task Subscribe(string queueName, Func<MessageEventArgs,Task<FunctionResult>> handler)
         {
@@ -65,20 +64,20 @@ namespace WebJobs.Extension.Solace
                 AckMode = MessageAckMode.ClientAck
             };
 
-            this.queue = ContextFactory.Instance.CreateQueue(queueName);
-            this.flow = this.session.CreateFlow(flowProperties, queue, null, async (s, e) => 
+            _queue = ContextFactory.Instance.CreateQueue(queueName);
+            _flow = _session.CreateFlow(flowProperties, _queue, null, async (s, e) => 
             {
                 var result = await handler.Invoke(e);
                 
                 if(result.Succeeded)
                 {
-                    this.flow.Ack(e.Message.ADMessageId);
+                    _flow.Ack(e.Message.ADMessageId);
                 }
                 
             },
             (s,e) => { }); // TODO: what if the flow goes down? Disconnect? how to propogate out events to Function?
 
-            this.flow.Start();
+            _flow.Start();
             return Task.CompletedTask;
         }
 
@@ -87,8 +86,8 @@ namespace WebJobs.Extension.Solace
         /// </summary>
         public void Disconnect()
         {
-            this.flow.Stop();
-            this.session.Disconnect();
+            _flow.Stop();
+            _session.Disconnect();
         }
 
         /// <summary>
@@ -96,9 +95,9 @@ namespace WebJobs.Extension.Solace
         /// </summary>
         public void Dispose()
         {
-            this.queue.Dispose();
-            this.session.Dispose();
-            this.context.Dispose();
+            _queue.Dispose();
+            _session.Dispose();
+            _context.Dispose();
         }
     }
 }

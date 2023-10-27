@@ -7,11 +7,11 @@ namespace WebJobs.Extension.Solace
     /// </summary>
     public class SolaceServiceFactory : ISolaceServiceFactory
     {
-        private ILogger<SolaceClient> logger;
+        private ILogger<SolaceClient> _logger;
 
         public SolaceServiceFactory(ILogger<SolaceClient> logger)
         {
-            this.logger = logger;
+            _logger = logger;
         }
         /// <summary>
         /// Create Solace Client from connection string
@@ -20,7 +20,7 @@ namespace WebJobs.Extension.Solace
         /// <returns>Returns SolaceClient</returns>
         public SolaceClient CreateSolaceClient(SolaceTriggerAttribute attribute)
         {
-            SolaceClient client = new SolaceClient(logger);
+            SolaceClient client = new SolaceClient(_logger);
 
             client.Connect(attribute);
 
